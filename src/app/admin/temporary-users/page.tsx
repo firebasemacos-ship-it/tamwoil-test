@@ -160,6 +160,25 @@ const AdminTemporaryUsersPage = () => {
         return result;
     }, [orders, searchQuery, dateFilter, customDateRange]);
 
+    // Calculate totals - using paid amounts (totalAmount - remainingAmount)
+    const accountTotals = useMemo(() => {
+        const totals = {
+            cash: 0,
+            bank: 0
+        };
+
+        // Since TempOrder doesn't track payment method breakdown,
+        // we'll calculate total paid amount for now
+        // This needs proper implementation with payment tracking
+        orders.forEach(order => {
+            const paidAmount = order.totalAmount - order.remainingAmount;
+            // For now, we'll show all in cash until payment method tracking is added
+            totals.cash += paidAmount;
+        });
+
+        return totals;
+    }, [orders]);
+
 
     const totalDebt = filteredOrders.filter(t => t.status !== 'cancelled').reduce((sum, t) => sum + t.remainingAmount, 0);
     const totalOrdersValue = filteredOrders.filter(t => t.status !== 'cancelled').reduce((sum, t) => sum + t.totalAmount, 0);
@@ -289,6 +308,33 @@ const AdminTemporaryUsersPage = () => {
                             إضافة فاتورة مجمعة
                         </Button>
                     </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium text-green-700">💵 إجمالي المدفوعات</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-3xl font-bold text-green-800">
+                                {accountTotals.cash.toFixed(2)} <span className="text-lg">د.ل</span>
+                            </div>
+                            <p className="text-xs text-green-600 mt-1">إجمالي المبالغ المدفوعة</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium text-blue-700">⏳ المبالغ المتبقية</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-3xl font-bold text-blue-800">
+                                {totalDebt.toFixed(2)} <span className="text-lg">د.ل</span>
+                            </div>
+                            <p className="text-xs text-blue-600 mt-1">إجمالي المبالغ غير المسددة</p>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 {/* Date Filter Section */}

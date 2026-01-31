@@ -4,20 +4,20 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Trash2, Edit, Building, User, Info, Loader2, MoreVertical, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from "@/components/ui/use-toast";
-import { Creditor } from '@/lib/types';
-import { getCreditors, addCreditor, updateCreditor, deleteCreditor } from '@/lib/actions';
+import { Creditor, ExternalDebt } from '@/lib/types';
+import { getCreditors, addCreditor, updateCreditor, deleteCreditor, getAllExternalDebts } from '@/lib/actions';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,6 +29,7 @@ const AdminCreditorsPage = () => {
     const { toast } = useToast();
     const router = useRouter();
     const [creditors, setCreditors] = useState<Creditor[]>([]);
+    const [debts, setDebts] = useState<ExternalDebt[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -38,8 +39,12 @@ const AdminCreditorsPage = () => {
     const fetchCreditors = useCallback(async () => {
         setIsLoading(true);
         try {
-            const fetchedCreditors = await getCreditors();
-            setCreditors(fetchedCreditors.sort((a,b) => a.name.localeCompare(b.name)));
+            const [fetchedCreditors, fetchedDebts] = await Promise.all([
+                getCreditors(),
+                getAllExternalDebts()
+            ]);
+            setCreditors(fetchedCreditors.sort((a, b) => a.name.localeCompare(b.name)));
+            setDebts(fetchedDebts);
         } catch (error) {
             toast({
                 title: "خطأ",
@@ -57,7 +62,7 @@ const AdminCreditorsPage = () => {
 
     const filteredCreditors = useMemo(() => {
         let filtered = creditors;
-        
+
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(c => c.name.toLowerCase().includes(query));
@@ -66,11 +71,42 @@ const AdminCreditorsPage = () => {
         return filtered;
     }, [creditors, searchQuery]);
 
+    // Calculate totals by account type
+    const accountTotals = useMemo(() => {
+        const totals = {
+            cash: 0,
+            bank: 0,
+            usd: 0
+        };
+
+        debts.forEach(debt => {
+            // Find the creditor for this debt to check currency
+            const creditor = creditors.find(c => c.id === debt.creditorId);
+
+            // If creditor uses USD, add to USD total
+            if (creditor?.currency === 'USD') {
+                totals.usd += debt.amount;
+            } else {
+                // For LYD creditors, check accountType
+                const accountType = debt.accountType || 'cash';
+                if (accountType === 'cash') {
+                    totals.cash += debt.amount;
+                } else if (accountType === 'bank') {
+                    totals.bank += debt.amount;
+                } else if (accountType === 'usd') {
+                    totals.usd += debt.amount;
+                }
+            }
+        });
+
+        return totals;
+    }, [debts, creditors]);
+
     const openDialog = (creditor: Creditor | null = null) => {
         setCurrentCreditor(creditor);
         setIsDialogOpen(true);
     };
-    
+
     const openDeleteConfirm = (creditor: Creditor) => {
         setCurrentCreditor(creditor);
         setIsDeleteConfirmOpen(true);
@@ -80,9 +116,9 @@ const AdminCreditorsPage = () => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         const name = formData.get('name') as string;
-        
+
         if (!name) {
-            toast({ title: "خطأ", description: "الرجاء إدخال اسم.", variant: 'destructive'});
+            toast({ title: "خطأ", description: "الرجاء إدخال اسم.", variant: 'destructive' });
             return;
         }
 
@@ -92,7 +128,7 @@ const AdminCreditorsPage = () => {
             contactInfo: formData.get('contactInfo') as string,
             currency: formData.get('currency') as 'LYD' | 'USD',
         };
-        
+
         const initialBalance = parseFloat(formData.get('initialBalance') as string) || 0;
 
         try {
@@ -100,18 +136,18 @@ const AdminCreditorsPage = () => {
                 await updateCreditor(currentCreditor.id, creditorData);
                 toast({ title: "تم تحديث الملف بنجاح" });
             } else {
-                 const fullCreditorData: Omit<Creditor, 'id' | 'totalDebt'> = {
+                const fullCreditorData: Omit<Creditor, 'id' | 'totalDebt'> = {
                     ...creditorData,
-                 } as Omit<Creditor, 'id' | 'totalDebt'>;
+                } as Omit<Creditor, 'id' | 'totalDebt'>;
 
                 await addCreditor(fullCreditorData, initialBalance);
                 toast({ title: "تمت إضافة الحساب بنجاح" });
             }
             setIsDialogOpen(false);
             fetchCreditors();
-        } catch(error) {
+        } catch (error) {
             console.error("Error saving creditor:", error);
-            toast({ title: "حدث خطأ", description: "فشل حفظ الملف.", variant: 'destructive'});
+            toast({ title: "حدث خطأ", description: "فشل حفظ الملف.", variant: 'destructive' });
         }
     };
 
@@ -121,7 +157,7 @@ const AdminCreditorsPage = () => {
                 await deleteCreditor(currentCreditor.id);
                 toast({ title: "تم حذف الحساب وجميع حركاته المالية" });
                 fetchCreditors();
-            } catch(error) {
+            } catch (error) {
                 toast({ title: "حدث خطأ", description: "فشل حذف الحساب.", variant: 'destructive' });
             }
         }
@@ -139,16 +175,55 @@ const AdminCreditorsPage = () => {
                     إضافة حساب جديد
                 </Button>
             </div>
-            
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-green-700">💵 إجمالي الكاش</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold text-green-800">
+                            {accountTotals.cash.toFixed(2)} <span className="text-lg">د.ل</span>
+                        </div>
+                        <p className="text-xs text-green-600 mt-1">جميع الحسابات النقدية</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-blue-700">🏦 إجمالي المصرف</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold text-blue-800">
+                            {accountTotals.bank.toFixed(2)} <span className="text-lg">د.ل</span>
+                        </div>
+                        <p className="text-xs text-blue-600 mt-1">جميع الحسابات المصرفية</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-purple-700">💰 إجمالي الدولار</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold text-purple-800">
+                            {accountTotals.usd.toFixed(2)} <span className="text-lg">$</span>
+                        </div>
+                        <p className="text-xs text-purple-600 mt-1">جميع حسابات الدولار</p>
+                    </CardContent>
+                </Card>
+            </div>
+
             <Card>
                 <CardHeader>
-                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                         <div>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
                             <CardTitle>قائمة الحسابات</CardTitle>
                             <CardDescription>عرض وإدارة ملفات تعريف الشركات والأشخاص الذين تتعامل معهم ماليًا.</CardDescription>
                         </div>
                         <div className="relative w-full sm:w-72">
-                            <Input 
+                            <Input
                                 placeholder="ابحث بالاسم..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -170,31 +245,32 @@ const AdminCreditorsPage = () => {
                                 const balanceText = totalDebt > 0 ? 'مبلغ عليه' : 'مبلغ له';
 
                                 return (
-                                <Card key={creditor.id} className="hover:shadow-md transition-shadow relative">
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-lg font-bold">{creditor.name}</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        {creditor.type === 'company' ? <Building className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                                            <span>{creditor.type === 'company' ? 'شركة' : 'شخص'}</span>
-                                        </div>
-                                        <div className="mt-4 pt-4 border-t">
-                                            <p className="text-xs text-muted-foreground">{totalDebt === 0 ? 'الرصيد' : balanceText}</p>
-                                            <p className={`text-2xl font-bold ${totalDebt === 0 ? '' : balanceColor}`}>
-                                                {Math.abs(totalDebt).toFixed(2)} {currencySymbol}
-                                            </p>
-                                        </div>
-                                    </CardContent>
-                                    <CardContent className="flex gap-2 pt-0">
-                                        <Button asChild variant="secondary" className="flex-1">
-                                            <Link href={`/admin/creditors/${creditor.id}`}>عرض التفاصيل</Link>
-                                        </Button>
-                                        <Button size="icon" variant="ghost" onClick={() => openDialog(creditor)}><Edit className="h-4 w-4"/></Button>
-                                        <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => openDeleteConfirm(creditor)}><Trash2 className="h-4 w-4"/></Button>
-                                    </CardContent>
-                                </Card>
-                            )})}
+                                    <Card key={creditor.id} className="hover:shadow-md transition-shadow relative">
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                            <CardTitle className="text-lg font-bold">{creditor.name}</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                {creditor.type === 'company' ? <Building className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                <span>{creditor.type === 'company' ? 'شركة' : 'شخص'}</span>
+                                            </div>
+                                            <div className="mt-4 pt-4 border-t">
+                                                <p className="text-xs text-muted-foreground">{totalDebt === 0 ? 'الرصيد' : balanceText}</p>
+                                                <p className={`text-2xl font-bold ${totalDebt === 0 ? '' : balanceColor}`}>
+                                                    {Math.abs(totalDebt).toFixed(2)} {currencySymbol}
+                                                </p>
+                                            </div>
+                                        </CardContent>
+                                        <CardContent className="flex gap-2 pt-0">
+                                            <Button asChild variant="secondary" className="flex-1">
+                                                <Link href={`/admin/creditors/${creditor.id}`}>عرض التفاصيل</Link>
+                                            </Button>
+                                            <Button size="icon" variant="ghost" onClick={() => openDialog(creditor)}><Edit className="h-4 w-4" /></Button>
+                                            <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => openDeleteConfirm(creditor)}><Trash2 className="h-4 w-4" /></Button>
+                                        </CardContent>
+                                    </Card>
+                                )
+                            })}
                         </div>
                     ) : (
                         <div className="text-center py-10 text-muted-foreground">
@@ -204,15 +280,15 @@ const AdminCreditorsPage = () => {
                     )}
                 </CardContent>
             </Card>
-            
-            <Dialog open={isDialogOpen} onOpenChange={(isOpen) => { setIsDialogOpen(isOpen); if(!isOpen) setCurrentCreditor(null); }}>
+
+            <Dialog open={isDialogOpen} onOpenChange={(isOpen) => { setIsDialogOpen(isOpen); if (!isOpen) setCurrentCreditor(null); }}>
                 <DialogContent className="sm:max-w-md" dir='rtl'>
                     <form onSubmit={handleSave}>
                         <DialogHeader>
                             <DialogTitle>{currentCreditor ? 'تعديل ملف' : 'إضافة حساب جديد'}</DialogTitle>
                         </DialogHeader>
                         <div className="grid gap-4 py-4 text-right">
-                             <div className="space-y-2">
+                            <div className="space-y-2">
                                 <Label htmlFor="name">الاسم (شخص/شركة)</Label>
                                 <Input id="name" name="name" defaultValue={currentCreditor?.name} required />
                             </div>
@@ -229,7 +305,7 @@ const AdminCreditorsPage = () => {
                                     </div>
                                 </RadioGroup>
                             </div>
-                             <div className="space-y-2">
+                            <div className="space-y-2">
                                 <Label>عملة الحساب</Label>
                                 <RadioGroup name="currency" defaultValue={currentCreditor?.currency || "LYD"} className="flex gap-4 pt-2">
                                     <div className="flex items-center space-x-2 space-x-reverse">
@@ -244,12 +320,12 @@ const AdminCreditorsPage = () => {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="contactInfo">معلومات الاتصال (اختياري)</Label>
-                                <Textarea id="contactInfo" name="contactInfo" defaultValue={currentCreditor?.contactInfo} placeholder="رقم هاتف، بريد إلكتروني، الخ..."/>
+                                <Textarea id="contactInfo" name="contactInfo" defaultValue={currentCreditor?.contactInfo} placeholder="رقم هاتف، بريد إلكتروني، الخ..." />
                             </div>
-                             {!currentCreditor && (
+                            {!currentCreditor && (
                                 <div className="space-y-2 p-4 border rounded-md">
                                     <Label htmlFor="initialBalance">مبلغ الرصيد الافتتاحي (اختياري)</Label>
-                                    <Input id="initialBalance" name="initialBalance" type="number" step="0.01" dir="ltr" placeholder="0.00"/>
+                                    <Input id="initialBalance" name="initialBalance" type="number" step="0.01" dir="ltr" placeholder="0.00" />
                                     <p className="text-xs text-muted-foreground">
                                         أدخل قيمة موجبة إذا كان الحساب مدينًا (عليه مبلغ)، وقيمة سالبة إذا كان دائنًا (له مبلغ).
                                     </p>
@@ -263,7 +339,7 @@ const AdminCreditorsPage = () => {
                     </form>
                 </DialogContent>
             </Dialog>
-            
+
             <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
                 <DialogContent dir='rtl'>
                     <DialogHeader>
