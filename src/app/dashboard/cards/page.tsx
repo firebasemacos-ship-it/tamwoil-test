@@ -32,7 +32,7 @@ export default function UserCardsPage() {
     const [productDialogOpen, setProductDialogOpen] = useState(false);
     const [selectedPackage, setSelectedPackage] = useState<CardPackage | null>(null);
     const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank'>('cash');
+    const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank' | 'balance'>('cash');
 
     // User Context
     const [user, setUser] = useState<any>(null);
@@ -68,14 +68,37 @@ export default function UserCardsPage() {
         }
     };
 
-    const getPrice = (costUSD: number, margin: number) => {
-        if (!settings?.exchangeRate) return 0;
-        return (costUSD * (1 + margin / 100) * settings.exchangeRate).toFixed(2);
+    const getPrice = (costUSD: number, margin: number, exchangeRate: number) => {
+        return (costUSD * (1 + margin / 100) * exchangeRate).toFixed(2);
+    };
+
+    const getEffectiveExchangeRate = (method: 'cash' | 'bank' | 'balance') => {
+        if (!settings) return 1;
+        switch (method) {
+            case 'cash':
+                return settings.cardsExchangeRateCash || settings.exchangeRate;
+            case 'bank':
+                return settings.cardsExchangeRateBank || settings.exchangeRate;
+            case 'balance':
+                return settings.cardsExchangeRateBalance || settings.exchangeRate;
+            default:
+                return settings.exchangeRate;
+        }
+    };
+
+    const getMargin = (pkg: CardPackage, method: 'cash' | 'bank' | 'balance') => {
+        switch (method) {
+            case 'cash': return pkg.profitMarginCash;
+            case 'bank': return pkg.profitMarginBank;
+            case 'balance': return pkg.profitMarginBalance;
+            default: return pkg.profitMarginCash;
+        }
     };
 
     const getLowestPriceForPackage = (pkg: CardPackage) => {
         if (!pkg.variants || pkg.variants.length === 0) return 0;
-        const prices = pkg.variants.map(v => Number(getPrice(v.costUSD, pkg.profitMarginCash)));
+        const cashRate = getEffectiveExchangeRate('cash');
+        const prices = pkg.variants.map(v => Number(getPrice(v.costUSD, pkg.profitMarginCash, cashRate)));
         return Math.min(...prices).toFixed(2);
     };
 
@@ -92,9 +115,10 @@ export default function UserCardsPage() {
         const variant = selectedPackage.variants.find(v => v.id === selectedVariantId);
         if (!variant) return;
 
-        const margin = paymentMethod === 'cash' ? selectedPackage.profitMarginCash : selectedPackage.profitMarginBank;
-        const finalPrice = getPrice(variant.costUSD, margin);
-        const methodText = paymentMethod === 'cash' ? 'كاش' : 'مصرفي';
+        const margin = getMargin(selectedPackage, paymentMethod);
+        const exchangeRate = getEffectiveExchangeRate(paymentMethod);
+        const finalPrice = getPrice(variant.costUSD, margin, exchangeRate);
+        const methodText = paymentMethod === 'cash' ? 'كاش' : paymentMethod === 'bank' ? 'مصرفي' : 'رصيد';
 
         const message = `مرحبا تمويل، أود شراء بطاقة:
 - الخدمة: ${selectedPackage.service}
@@ -200,8 +224,9 @@ export default function UserCardsPage() {
                                 <Label className="text-slate-400">اختر الفئة</Label>
                                 <div className="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1">
                                     {selectedPackage.variants?.map(variant => {
-                                        const margin = paymentMethod === 'cash' ? selectedPackage.profitMarginCash : selectedPackage.profitMarginBank;
-                                        const price = getPrice(variant.costUSD, margin);
+                                        const margin = getMargin(selectedPackage, paymentMethod);
+                                        const exchangeRate = getEffectiveExchangeRate(paymentMethod);
+                                        const price = getPrice(variant.costUSD, margin, exchangeRate);
 
                                         return (
                                             <button
@@ -223,7 +248,7 @@ export default function UserCardsPage() {
                             {/* Payment Method */}
                             <div className="space-y-3">
                                 <Label className="text-slate-400">طريقة الدفع</Label>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-3 gap-3">
                                     <button
                                         onClick={() => setPaymentMethod('cash')}
                                         className={`p-3 rounded-xl border text-center font-bold transition-all ${paymentMethod === 'cash'
@@ -231,7 +256,7 @@ export default function UserCardsPage() {
                                             : 'border-slate-800 bg-slate-800/50 text-slate-400'
                                             }`}
                                     >
-                                        كاش (Cash)
+                                        💵 كاش
                                     </button>
                                     <button
                                         onClick={() => setPaymentMethod('bank')}
@@ -240,7 +265,16 @@ export default function UserCardsPage() {
                                             : 'border-slate-800 bg-slate-800/50 text-slate-400'
                                             }`}
                                     >
-                                        مصرفي (Bank)
+                                        🏦 مصرفي
+                                    </button>
+                                    <button
+                                        onClick={() => setPaymentMethod('balance')}
+                                        className={`p-3 rounded-xl border text-center font-bold transition-all ${paymentMethod === 'balance'
+                                            ? 'border-purple-500 bg-purple-500/10 text-purple-400'
+                                            : 'border-slate-800 bg-slate-800/50 text-slate-400'
+                                            }`}
+                                    >
+                                        💰 رصيد
                                     </button>
                                 </div>
                             </div>
@@ -257,9 +291,8 @@ export default function UserCardsPage() {
                                         <span className="text-blue-400">
                                             {getPrice(
                                                 selectedPackage.variants.find(v => v.id === selectedVariantId)!.costUSD,
-                                                paymentMethod === 'cash'
-                                                    ? selectedPackage.profitMarginCash
-                                                    : selectedPackage.profitMarginBank
+                                                getMargin(selectedPackage, paymentMethod),
+                                                getEffectiveExchangeRate(paymentMethod)
                                             )} د.ل
                                         </span>
                                     </div>

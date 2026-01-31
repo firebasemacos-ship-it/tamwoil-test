@@ -164,9 +164,20 @@ export interface Notification {
 }
 
 export interface AppSettings {
+  // Basic exchange rate for orders and shipments
   exchangeRate: number;
   pricePerKiloLYD: number;
   pricePerKiloUSD: number;
+
+  // Cards exchange rates
+  cardsExchangeRateCash: number;
+  cardsExchangeRateBank: number;
+  cardsExchangeRateBalance: number;
+
+  // Products exchange rates
+  productsExchangeRateCash: number;
+  productsExchangeRateBank: number;
+  productsExchangeRateBalance: number;
 }
 
 export interface Expense {
@@ -195,6 +206,8 @@ export interface Deposit {
 
 export type ExternalDebtStatus = 'pending' | 'paid' | 'payment';
 
+export type AccountType = 'cash' | 'bank' | 'usd';
+
 export interface ExternalDebt {
   id: string;
   creditorId: string;
@@ -203,6 +216,7 @@ export interface ExternalDebt {
   date: string; // ISO String
   status: ExternalDebtStatus;
   notes: string;
+  accountType: AccountType; // Type of account: cash, bank, or USD
 }
 
 export interface Creditor {
@@ -274,5 +288,20 @@ export interface CardPackage {
   image?: string;
   profitMarginCash: number;
   profitMarginBank: number;
+  profitMarginBalance: number;
   active: boolean;
+}
+
+// Temporary User Financial Transaction
+export interface TempUserTransaction {
+  id: string;
+  tempOrderId: string;
+  subOrderId: string;
+  customerName: string;
+  amount: number;
+  date: string; // ISO String
+  type: 'invoice' | 'payment';
+  accountType: 'cash' | 'bank';
+  notes: string;
+  createdAt: string; // ISO String
 }

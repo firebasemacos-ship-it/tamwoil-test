@@ -36,13 +36,15 @@ export default function AdminCardsPage() {
         image: string;
         profitMarginCash: number;
         profitMarginBank: number;
+        profitMarginBalance: number;
     }>({
         service: '',
         category: 'Games',
         variants: [],
         image: '',
         profitMarginCash: 0,
-        profitMarginBank: 0
+        profitMarginBank: 0,
+        profitMarginBalance: 0
     });
 
     // Bulk Add State
@@ -85,7 +87,8 @@ export default function AdminCardsPage() {
             variants: [{ id: crypto.randomUUID(), name: '', costUSD: 0 }],
             image: '',
             profitMarginCash: 0,
-            profitMarginBank: 0
+            profitMarginBank: 0,
+            profitMarginBalance: 0
         });
         setIsPackageDialogOpen(true);
     };
@@ -98,7 +101,8 @@ export default function AdminCardsPage() {
             variants: pkg.variants || [],
             image: pkg.image || '',
             profitMarginCash: pkg.profitMarginCash || 0,
-            profitMarginBank: pkg.profitMarginBank || 0
+            profitMarginBank: pkg.profitMarginBank || 0,
+            profitMarginBalance: pkg.profitMarginBalance || 0
         });
         setIsPackageDialogOpen(true);
     };
@@ -409,7 +413,7 @@ export default function AdminCardsPage() {
 
                     <div className="space-y-2 mb-4 p-4 bg-slate-50 rounded-lg border">
                         <h4 className="font-bold text-sm mb-2 text-slate-700">هوامش الربح (تطبق على جميع الفئات)</h4>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-green-700">هامش الكاش (%)</Label>
                                 <Input
@@ -428,6 +432,16 @@ export default function AdminCardsPage() {
                                     onChange={e => setPackageForm({ ...packageForm, profitMarginBank: parseFloat(e.target.value) })}
                                     placeholder="10 (يعني 10%)"
                                     className="border-blue-200 focus:border-blue-500"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-purple-700">هامش الرصيد (%)</Label>
+                                <Input
+                                    type="number"
+                                    value={packageForm.profitMarginBalance}
+                                    onChange={e => setPackageForm({ ...packageForm, profitMarginBalance: parseFloat(e.target.value) })}
+                                    placeholder="8 (يعني 8%)"
+                                    className="border-purple-200 focus:border-purple-500"
                                 />
                             </div>
                         </div>

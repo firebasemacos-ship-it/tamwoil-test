@@ -4,7 +4,7 @@
 
 import { dbAdapter } from "./db-adapter";
 import { where, increment, arrayUnion } from "./db-adapter";
-import { Manager, User, Representative, Order, Transaction, TempOrder, Conversation, Message, Notification, AppSettings, OrderStatus, Expense, Deposit, DepositStatus, ExternalDebt, Creditor, ManualShippingLabel, SubOrder, InstantSale, Card } from "./types";
+import { Manager, User, Representative, Order, Transaction, TempOrder, Conversation, Message, Notification, AppSettings, OrderStatus, Expense, Deposit, DepositStatus, ExternalDebt, Creditor, ManualShippingLabel, SubOrder, InstantSale, Card, TempUserTransaction, AccountType } from "./types";
 
 // Map adapter methods to Firebase names for minimal code changes
 const db = dbAdapter;
@@ -99,6 +99,7 @@ const CREDITORS_COLLECTION = 'creditors_v4';
 const MANUAL_LABELS_COLLECTION = 'manual_labels_v4';
 const INSTANT_SALES_COLLECTION = 'instant_sales_v4';
 const CARDS_COLLECTION = 'cards_v4';
+const TEMP_USER_TRANSACTIONS_COLLECTION = 'temp_user_transactions_v4';
 
 
 // --- Recalculation Function for Data Integrity ---
@@ -211,6 +212,12 @@ export async function getAppSettings(): Promise<AppSettings> {
             exchangeRate: 1,
             pricePerKiloLYD: 0,
             pricePerKiloUSD: 0,
+            cardsExchangeRateCash: 1,
+            cardsExchangeRateBank: 1,
+            cardsExchangeRateBalance: 1,
+            productsExchangeRateCash: 1,
+            productsExchangeRateBank: 1,
+            productsExchangeRateBalance: 1,
         };
 
         if (docSnap.exists()) {
@@ -219,6 +226,12 @@ export async function getAppSettings(): Promise<AppSettings> {
                 exchangeRate: data.exchangeRate ?? defaults.exchangeRate,
                 pricePerKiloLYD: data.pricePerKiloLYD ?? defaults.pricePerKiloLYD,
                 pricePerKiloUSD: data.pricePerKiloUSD ?? defaults.pricePerKiloUSD,
+                cardsExchangeRateCash: data.cardsExchangeRateCash ?? defaults.cardsExchangeRateCash,
+                cardsExchangeRateBank: data.cardsExchangeRateBank ?? defaults.cardsExchangeRateBank,
+                cardsExchangeRateBalance: data.cardsExchangeRateBalance ?? defaults.cardsExchangeRateBalance,
+                productsExchangeRateCash: data.productsExchangeRateCash ?? defaults.productsExchangeRateCash,
+                productsExchangeRateBank: data.productsExchangeRateBank ?? defaults.productsExchangeRateBank,
+                productsExchangeRateBalance: data.productsExchangeRateBalance ?? defaults.productsExchangeRateBalance,
             };
         } else {
             // If the document doesn't exist, create it with default values
@@ -227,7 +240,17 @@ export async function getAppSettings(): Promise<AppSettings> {
         }
     } catch (error) {
         console.error("Error getting app settings:", error);
-        return { exchangeRate: 1, pricePerKiloLYD: 0, pricePerKiloUSD: 0 };
+        return {
+            exchangeRate: 1,
+            pricePerKiloLYD: 0,
+            pricePerKiloUSD: 0,
+            cardsExchangeRateCash: 1,
+            cardsExchangeRateBank: 1,
+            cardsExchangeRateBalance: 1,
+            productsExchangeRateCash: 1,
+            productsExchangeRateBank: 1,
+            productsExchangeRateBalance: 1,
+        };
     }
 }
 
