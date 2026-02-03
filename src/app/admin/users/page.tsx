@@ -125,11 +125,8 @@ const AdminUsersPage = () => {
 
   const generateNextUsername = () => {
     const maxUserNumber = users.reduce((max, user) => {
-      // Check for both old prefix (MB) and new prefix (TP) to maintain sequence if needed
-      // Or just switch to TP completely. If we want to continue sequence, we should check both or reset.
-      // Assuming new prefix implies new sequence or just checking TP for now. 
-      // User request: "Replace user code with TP instead of MB"
-      if (user.username.startsWith('TP')) {
+      // Check for both old prefix (TP) and new prefix (MB) to maintain sequence
+      if (user.username.startsWith('TP') || user.username.startsWith('MB')) {
         const num = parseInt(user.username.substring(2));
         if (!isNaN(num) && num > max) {
           return num;
@@ -137,7 +134,7 @@ const AdminUsersPage = () => {
       }
       return max;
     }, 0);
-    return `TP${maxUserNumber + 1}`;
+    return `MB${maxUserNumber + 1}`;
   }
 
 

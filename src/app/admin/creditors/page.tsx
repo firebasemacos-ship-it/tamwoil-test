@@ -170,10 +170,16 @@ const AdminCreditorsPage = () => {
         <div className="p-4 sm:p-6" dir="rtl">
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold">إدارة الذمم المالية</h1>
-                <Button size="sm" className="gap-1" onClick={() => openDialog()}>
-                    <PlusCircle className="h-4 w-4" />
-                    إضافة حساب جديد
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => router.push('/admin/creditors/reports')}>
+                        <span className="text-lg">📋</span>
+                        سجل التقارير
+                    </Button>
+                    <Button size="sm" className="gap-1" onClick={() => openDialog()}>
+                        <PlusCircle className="h-4 w-4" />
+                        إضافة حساب جديد
+                    </Button>
+                </div>
             </div>
 
             {/* Summary Cards */}

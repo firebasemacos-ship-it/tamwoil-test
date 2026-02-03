@@ -303,6 +303,10 @@ const AdminTemporaryUsersPage = () => {
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-2xl font-bold">إدارة المستخدمين المؤقتين</h1>
                     <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" className="gap-2" onClick={() => router.push('/admin/temporary-users/reports')}>
+                            <span className="text-lg">📋</span>
+                            سجل التقارير
+                        </Button>
                         <Button size="sm" className="gap-1" onClick={() => router.push('/admin/temporary-users/add')}>
                             <PlusCircle className="h-4 w-4" />
                             إضافة فاتورة مجمعة
